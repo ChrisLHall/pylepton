@@ -2,46 +2,86 @@
 
 import time
 import picamera
+import picamera.array
 import numpy as np
+import scipy.misc
 import cv2
 import traceback
 from pylepton import Lepton
+
+def AlignImages(image1, image2, max_dist):
+  image1dx = cv2.Sobel(image1, cv2.CV_32F, 1, 0, ksize=3)
+  image1dx *= image1dx
+  image1dy = cv2.Sobel(image1, cv2.CV_32F, 0, 1, ksize=3)
+  image1dy *= image1dy
+  image1 = np.sqrt(np.add(np.power(image1dx, 2.0), np.power(image1dy, 2.0)))
+  Normalize(image1)
+  for dx in range (-max_dist, max_dist):
+    for dy in range (-max_dist, max_dist):
+      pass
+  return image1
+
+def Normalize(image):
+  image += -np.amin(image)
+  image /= np.amax(image)
 
 def main(flip_v = False, alpha = 128, device = "/dev/spidev0.0"):
   # Create an array representing a 1280x720 image of
   # a cross through the center of the display. The shape of
   # the array must be of the form (height, width, color)
-  a = np.zeros((240, 320, 3), dtype=np.uint8)
+  a = np.zeros((480, 640, 3), dtype=np.uint8)
   lepton_buf = np.zeros((60, 80, 1), dtype=np.uint16)
 
   with picamera.PiCamera() as camera:
     camera.resolution = (640, 480)
     camera.framerate = 24
-    camera.vflip = flip_v
-    camera.start_preview()
-    camera.fullscreen = True
+    #camera.vflip = flip_v
+    camera.rotation = 180
+    #camera.start_preview()
+    #camera.fullscreen = True
     # Add the overlay directly into layer 3 with transparency;
     # we can omit the size parameter of add_overlay as the
     # size is the same as the camera's resolution
-    o = camera.add_overlay(np.getbuffer(a), size=(320,240), layer=3, alpha=int(alpha), crop=(0,0,80,60), vflip=flip_v)
+    #o = camera.add_overlay(np.getbuffer(a), size=(640,480), layer=3, alpha=255, crop=(0,0,640,480), vflip=flip_v)
     try:
       time.sleep(0.2) # give the overlay buffers a chance to initialize
       with Lepton(device) as l:
         last_nr = 0
         while True:
           _,nr = l.capture(lepton_buf)
-          if nr == last_nr:
+          #if nr == last_nr:
             # no need to redo this frame
-            continue
+            #continue
           last_nr = nr
           cv2.normalize(lepton_buf, lepton_buf, 0, 65535, cv2.NORM_MINMAX)
           np.right_shift(lepton_buf, 8, lepton_buf)
-          a[:lepton_buf.shape[0], :lepton_buf.shape[1], :] = lepton_buf
-          o.update(np.getbuffer(a))
+          #a[:lepton_buf.shape[0], :lepton_buf.shape[1], :] = lepton_buf
+          with picamera.array.PiRGBArray(camera) as output:
+            #TODO AHHHH
+            camera.capture(output, 'rgb')
+            #output.array = np.zeros((480, 640, 3), dtype='uint8')
+            capture_array = output.array / 255.0
+            print capture_array.dtype
+            #small_capture_array = scipy.misc.imresize(capture_array, (60, 80), interp='bilinear')
+            #lepton_float = lepton_buf.astype('float')[:, :, 0] / 65535.0
+            lepton_float = lepton_buf[:, :, 0].astype('float')
+            
+            #lepton_resize = lepton_float
+            lepton_resize = scipy.misc.imresize(lepton_float, (480, 640), interp='bilinear')
+            lepton_resize = 5 * AlignImages(lepton_resize, None, 5) #TODO REMOVE THIS POOP
+            
+            stacked = np.dstack((lepton_resize, lepton_resize, lepton_resize))
+            capture_array += stacked
+            Normalize(capture_array)
+            capture_array *= 255
+            a[:, :, :] = capture_array[:,:,:]
+          cv2.imshow("Pines", a)
+          #o.update(np.getbuffer(a))
     except Exception:
       traceback.print_exc()
     finally:
-      camera.remove_overlay(o)
+      print "Pines"
+      #camera.remove_overlay(o)
 
 if __name__ == '__main__':
   from optparse import OptionParser
