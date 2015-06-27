@@ -13,3 +13,6 @@ node_modules/
 !src/node_modules/
 
 node_modules/*/node_modules
+
+watchon/images/
+watchon/images/*
