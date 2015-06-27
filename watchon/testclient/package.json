@@ -1,0 +1,9 @@
+{
+  "name": "WatchON-test",
+  "version": "0.0.1",
+  "description": "Lepton based multinode watch main server",
+  "dependencies": {
+    "socket.io": "^1.3.5",
+    "socket.io-client": "^1.3.5"
+  }
+}
