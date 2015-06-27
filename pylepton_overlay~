@@ -61,7 +61,6 @@ def main(flip_v = False, alpha = 128, device = "/dev/spidev0.0"):
           #with picamera.array.PiRGBArray(camera) as output:
             #TODO AHHHH
             #camera.capture(output, 'bgr')\
-          if True:
             output = frame
             #output.array = np.zeros((480, 640, 3), dtype='uint8')
             capture_array = output.array / 255.0
