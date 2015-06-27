@@ -9,35 +9,62 @@ import cv2
 import traceback
 from pylepton import Lepton
 
-def AlignImages(image1, image2, max_dist):
-  image1dx = cv2.Sobel(image1, cv2.CV_32F, 1, 0, ksize=3)
+WIDTH = 160
+HEIGHT = 120
+
+def AlignImages(image1, image2, shiftx, shifty):
+  image1dx = cv2.Sobel(image1, cv2.CV_64F, 1, 0, ksize=3)
   image1dx *= image1dx
-  image1dy = cv2.Sobel(image1, cv2.CV_32F, 0, 1, ksize=3)
+  image1dy = cv2.Sobel(image1, cv2.CV_64F, 0, 1, ksize=3)
   image1dy *= image1dy
+  image2dx = cv2.Sobel(image2, cv2.CV_64F, 1, 0, ksize=3)
+  image2dx *= image2dx
+  image2dy = cv2.Sobel(image2, cv2.CV_64F, 0, 1, ksize=3)
+  image2dy *= image2dy
   image1 = np.sqrt(np.add(np.power(image1dx, 2.0), np.power(image1dy, 2.0)))
+  image2 = np.sqrt(np.add(np.power(image2dx, 2.0), np.power(image2dy, 2.0)))
   Normalize(image1)
-  for dx in range (-max_dist, max_dist):
-    for dy in range (-max_dist, max_dist):
-      pass
-  return image1
+  Normalize(image2)
+  
+  #best_ssd = 100000.0
+  #best_alignment = (0, 0)
+  #for dx in range (-max_dist, max_dist):
+  #  temp2 = np.roll(image2, dx, 1)
+  #  for dy in range (-max_dist, max_dist):
+  #    sd = image1 - np.roll(temp2, dy, 0)
+  #    sd *= sd
+  #    ssd = np.sum(sd)
+  #    if (ssd < best_ssd):
+  #      best_ssd = ssd
+  #      best_alignment = (dx, dy)
+  #print best_alignment
+  newred = np.roll(image1, shifty, 0)
+  newred = np.roll(newred, shiftx, 1)
+  return np.dstack((image1, image2, newred))
+  
+def DetectBlobs(image):
+  detector = cv2.SimpleBlobDetector()
+  points = detector.detect(image)
+  return points
 
 def Normalize(image):
   image += -np.amin(image)
   image /= np.amax(image)
 
-def main(flip_v = False, alpha = 128, device = "/dev/spidev0.0"):
+def main(flip_v = False, alpha = 128, shiftx=0, shifty=0, device = "/dev/spidev0.0"):
   # Create an array representing a 1280x720 image of
   # a cross through the center of the display. The shape of
   # the array must be of the form (height, width, color)
-  a = np.zeros((480, 640, 3), dtype=np.uint8)
+  a = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
   lepton_buf = np.zeros((60, 80, 1), dtype=np.uint16)
+  cv2.namedWindow("Pines")
 
   with picamera.PiCamera() as camera:
-    camera.resolution = (640, 480)
+    camera.resolution = (WIDTH, HEIGHT)
     camera.framerate = 24
     #camera.vflip = flip_v
     camera.rotation = 180
-    rawCapture =picamera.array.PiRGBArray(camera, size=(640,480))
+    rawCapture =picamera.array.PiRGBArray(camera, size=(WIDTH,HEIGHT))
     #camera.start_preview()
     #camera.fullscreen = True
     # Add the overlay directly into layer 3 with transparency;
@@ -61,25 +88,28 @@ def main(flip_v = False, alpha = 128, device = "/dev/spidev0.0"):
           #with picamera.array.PiRGBArray(camera) as output:
             #TODO AHHHH
             #camera.capture(output, 'bgr')\
-            output = frame
-            #output.array = np.zeros((480, 640, 3), dtype='uint8')
-            capture_array = output.array / 255.0
-            print capture_array.dtype
-            #small_capture_array = scipy.misc.imresize(capture_array, (60, 80), interp='bilinear')
-            #lepton_float = lepton_buf.astype('float')[:, :, 0] / 65535.0
-            lepton_float = lepton_buf[:, :, 0].astype('float')
+          output = frame
+          #output.array = np.zeros((480, 640, 3), dtype='uint8')
+          capture_array = output.array / 255.0
+          #small_capture_array = scipy.misc.imresize(capture_array, (60, 80), interp='bilinear')
+          #lepton_float = lepton_buf.astype('float')[:, :, 0] / 65535.0
+          lepton_float = lepton_buf[:, :, 0].astype('float')
             
-            #lepton_resize = lepton_float
-            lepton_resize = scipy.misc.imresize(lepton_float, (480, 640), interp='bilinear')
-            lepton_resize = 5 * AlignImages(lepton_resize, None, 5) #TODO REMOVE THIS POOP
+          #lepton_resize = lepton_float
+          lepton_resize = scipy.misc.imresize(lepton_float, (HEIGHT, WIDTH), interp='bilinear')
+          lepton_resize = 5 * AlignImages(lepton_resize, capture_array[:, :, 1].astype('float'), shiftx, shifty) #TODO REMOVE THIS POOP
+          print "IM NOT SCARED OF ANYTHING EXCEPT MYSELF"
+          print lepton_float.shape
+          print DetectBlobs(lepton_float)
             
-            stacked = np.dstack((lepton_resize, lepton_resize, lepton_resize))
-            capture_array += stacked
-            Normalize(capture_array)
-            capture_array *= 255
-            a[:, :, :] = capture_array[:,:,:]
-            rawCapture.truncate(0)
-          cv2.imshow("Pines", a)
+          stacked = lepton_resize #np.dstack((lepton_resize, lepton_resize, lepton_resize))
+          capture_array += stacked
+          Normalize(capture_array)
+          capture_array *= 255
+          #lepton_resize = scipy.misc.imresize(capture_array, (480, 640), interp='bilinear')
+          #a[:, :, :] = capture_array[:,:,:]
+          rawCapture.truncate(0)
+          cv2.imshow("Pines", scipy.misc.imresize(capture_array, (480, 640), interp='bilinear'))
           cv2.waitKey(1)
           #o.update(np.getbuffer(a))
     except Exception:
@@ -101,6 +131,14 @@ if __name__ == '__main__':
   parser.add_option("-a", "--alpha",
                     dest="alpha", default=128,
                     help="set lepton overlay opacity")
+                    
+  parser.add_option("-x", "--shiftx",
+                    dest="shiftx", default=0,
+                    help="X shift of the thermal cam")
+                    
+  parser.add_option("-y", "--shifty",
+                    dest="shifty", default=0,
+                    help="Y shift of the thermal cam")
 
   parser.add_option("-d", "--device",
                     dest="device", default="/dev/spidev0.0",
@@ -108,4 +146,4 @@ if __name__ == '__main__':
 
   (options, args) = parser.parse_args()
 
-  main(flip_v = options.flip_v, alpha = options.alpha, device = options.device)
+  main(flip_v = options.flip_v, alpha = options.alpha, shiftx=int(options.shiftx), shifty=int(options.shifty), device = options.device)
