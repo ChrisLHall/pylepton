@@ -3,6 +3,8 @@ var port = 9002;
 var io = module.exports = sio(port);
 var fs = require('fs');
 
+var status = {located: false};
+
 var sockets = [];
 
 io.on('connection', function(socket){
@@ -13,6 +15,7 @@ io.on('connection', function(socket){
 
   console.log("Total connections: " + sockets.length);
   console.log('a user connected');
+  /*
   socket.emit('where',{});
   socket.on('where', function(data){
     if(socket.pos == 1) {
@@ -23,12 +26,14 @@ io.on('connection', function(socket){
     console.log(sockets);
     console.log(data);
   });
+  */
   socket.on('disconnect', function(){
     console.log('user disconnected' + socket.pos);
   });
   //socket.emit('news', { hello: 'world' });
-  socket.on('my other event', function (data) {
+  socket.on('status', function (data) {
     console.log(data);
+    io.emit('status', status);
   });
 
   socket.on('target',function(data) {
@@ -36,7 +41,7 @@ io.on('connection', function(socket){
     io.emit('target',data);
   });
 
-
+  /*
   socket.on('image', function(data) {
     time = (new Date().getTime());
     fs.writeFile('images/' + time + '-vl.jpg', data.imageVL, function(err) {
@@ -44,16 +49,18 @@ io.on('connection', function(socket){
         return console.log(err);
     }
     fs.writeFile('images/' + time + '-ir.jpg', data.imageIR, function(err) {
-    if(err) {
+      if(err) {
         return console.log(err);
-    }
-  });
-      fs.writeFile('images/' + (new Date().getTime()) + '-ir.jpg', data.imageIR, function(err) {
+      }
+    });
+    fs.writeFile('images/' + (new Date().getTime()) + '-ir.jpg', data.imageIR, function(err) {
       if(err) {
           return console.log(err);
       }
-});
+    });
+
+   });
 
   });
-
+  */
 });
