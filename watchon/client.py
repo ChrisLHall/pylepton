@@ -8,8 +8,10 @@ port = 8080                 # Reserve a port for your service.
 statusport = 9002
 
 statusIO = SocketIO(host, statusport, LoggingNamespace)
-#s = socket.socket()
-#s.connect((host, port))
+s = socket.socket()
+s.connect((host, port))
+
+startFollowing = False
 
 def ConnectAndSend(image):
   val, buf = cv2.imencode('.bmp', image)
@@ -27,8 +29,7 @@ def ConnectAndSend(image):
   #s.close()                     # Close the socket when done
     
 def Close():
-  pass
-     #s.close()
+  s.close()
 
 def SendStatus(name, isRover, canSee, tryingToFind, waitForResponse=False):
   print "Sending status..."
@@ -36,7 +37,7 @@ def SendStatus(name, isRover, canSee, tryingToFind, waitForResponse=False):
     statusIO.emit('status', {'name': name, 'isRover': isRover, 'canSee': canSee, 'tryingToFind': tryingToFind}, GetCmdCallback)
     statusIO.wait_for_callbacks(seconds=1)
   else:
-    statusIO.emit('status', {'canSee': canSee, 'tryingToFind': tryingToFind})
+    statusIO.emit('status', {'name': name, 'isRover': isRover, 'canSee': canSee, 'tryingToFind': tryingToFind})
 
 def GetCmdCallback(*args):
     print "Sent status successfully."

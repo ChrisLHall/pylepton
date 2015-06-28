@@ -15,7 +15,7 @@ import movement
 
 WIDTH = 160
 HEIGHT = 120
-TRANSMIT_INTERVAL = 3
+TRANSMIT_INTERVAL = 5
 SIZE_APPROACH_MAX = 30.0
 SIZE_APPROACH_MIN = 10.0
 
@@ -89,16 +89,18 @@ def MoveBasedOnTarget(target):
   elif size < SIZE_APPROACH_MAX and size > SIZE_APPROACH_MIN: #Target in the middle
      movement.MoveForward()
 
-def main(name = 'Cam', flip_v = False, alpha = 128, shiftx=0, shifty=0, rover = False, device = "/dev/spidev0.0"):
+def main(name = 'Cam', flip_v = False, alpha = 128, shiftx=0, shifty=0, rover = False, device = "/dev/spidev0.0", visual=False):
   # Create an array representing a 1280x720 image of
   # a cross through the center of the display. The shape of
   # the array must be of the form (height, width, color)
   a = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
   lepton_buf = np.zeros((60, 80, 1), dtype=np.uint16)
-  cv2.namedWindow("Pines")
+  if visual:
+    cv2.namedWindow("Pines")
 
   untilNextTransmit = TRANSMIT_INTERVAL
   keypointListsByFrame = [[], [], [], []]
+  tryToFollow = False
   with picamera.PiCamera() as camera:
     camera.resolution = (WIDTH, HEIGHT)
     camera.framerate = 24
@@ -151,26 +153,32 @@ def main(name = 'Cam', flip_v = False, alpha = 128, shiftx=0, shifty=0, rover = 
           #a[:, :, :] = capture_array[:,:,:]
           rawCapture.truncate(0)
           
-          watchon.client.SendStatus(name, rover, False, False)
-          if rover: # TODO wait for command
+          if rover:
+            watchon.client.SendStatus(name, True, tryToFollow, False, True)
+          else:
+            canSee = (center != None and center['weight'] > SIZE_APPROACH_MIN)
+            watchon.client.SendStatus(name, False, False, canSee)
+
+          if rover and tryToFollow:
             MoveBasedOnTarget(center)
           
-          if untilNextTransmit <= 0 and center != None:
+          if untilNextTransmit <= 0 and center != None and center['weight'] > SIZE_APPROACH_MIN:
             untilNextTransmit = TRANSMIT_INTERVAL
             try:
               pass
               #watchon.client.ConnectAndSend((255 * capture_array).astype('uint8'))
             except Exception:
-              print "Send failed."
+              print "Picture send failed."
             #watchon.client.ConnectAndSend((255 * lepton_resize).astype('uint8'))
           untilNextTransmit -= 1
-          cv2.imshow("Pines", scipy.misc.imresize(final_array, (480, 640), interp='bilinear'))
-          cv2.waitKey(1)
+          if visual:
+            cv2.imshow("Pines", scipy.misc.imresize(final_array, (480, 640), interp='bilinear'))
+            cv2.waitKey(1)
           #o.update(np.getbuffer(a))
     except Exception:
       traceback.print_exc()
     finally:
-      print "Pines"
+      print "Closing"
       watchon.client.Close()
       #camera.remove_overlay(o)
 
@@ -183,6 +191,10 @@ if __name__ == '__main__':
   parser.add_option("-f", "--flip-vertical",
                     action="store_true", dest="flip_v", default=False,
                     help="flip the output images vertically")
+                    
+  parser.add_option("-v", "--visual",
+                    action="store_true", dest="visual", default=False,
+                    help="screen")
 
   parser.add_option("-n", "--name",
                     dest="name", default='Cam',
@@ -210,4 +222,4 @@ if __name__ == '__main__':
 
   (options, args) = parser.parse_args()
 
-  main(name = options.name, flip_v = options.flip_v, alpha = options.alpha, shiftx=int(options.shiftx), shifty=int(options.shifty), rover = options.rover, device = options.device)
+  main(name = options.name, flip_v = options.flip_v, alpha = options.alpha, shiftx=int(options.shiftx), shifty=int(options.shifty), rover = options.rover, device = options.device, visual = options.visual)

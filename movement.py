@@ -18,21 +18,21 @@ def TurnLeft():
   left.ChangeDutyCycle(20)
   right.ChangeDutyCycle(20)
   GPIO.output(20, 1)
-  GPIO.output(19, 0)
+  GPIO.output(19, 1)
 
 def TurnRight():
   print "Turning right"
   left.ChangeDutyCycle(20)
   right.ChangeDutyCycle(20)
   GPIO.output(20, 0)
-  GPIO.output(19, 1)
+  GPIO.output(19, 0)
 
 def MoveForward():
   print "Moving forward"
   left.ChangeDutyCycle(20)
   right.ChangeDutyCycle(20)
   GPIO.output(20, 1)
-  GPIO.output(19, 1)
+  GPIO.output(19, 0)
 
 def MoveBackward():
   print "Why are you trying to move backward? >:("
@@ -42,6 +42,9 @@ def Stop():
   right.ChangeDutyCycle(0)
   GPIO.output(20, 1)
   GPIO.output(19, 1)
+  pass
+
+def Cleanup():
   pass
 
 if __name__ == "__main__":
