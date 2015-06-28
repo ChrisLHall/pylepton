@@ -9,8 +9,10 @@ def DetectBlobs(image):
   params = cv2.SimpleBlobDetector_Params()
 
   # Change thresholds
-  params.minThreshold = 5;
-  params.maxThreshold = 200;
+  params.minThreshold = 5
+  params.maxThreshold = 150
+  params.filterByArea = 1
+  params.minArea = 30
 
   detector = cv2.SimpleBlobDetector(params)
   points = detector.detect((image * 255).astype('uint8'))
@@ -21,7 +23,7 @@ def DrawKeypoints(vis, keypoints, color = (0, 255, 255)):
   result = np.zeros((vis.shape[0], vis.shape[1], 3), dtype='uint8')
   for kp in keypoints:
     x, y = kp.pt
-    cv2.circle(result, (int(x), int(y)), kp.size, color)
+    cv2.circle(result, (int(x), int(y)), int(kp.size), color)
   return result
 
 if __name__ == "__main__":
