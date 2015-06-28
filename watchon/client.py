@@ -23,7 +23,8 @@ def ConnectAndSend(image):
   #s.close()                     # Close the socket when done
     
 def Close():
-     s.close()
+  pass
+     #s.close()
     
 if __name__ == "__main__":
   ConnectAndSend(None)
