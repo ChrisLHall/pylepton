@@ -2,6 +2,7 @@
 build
 dist
 MANIFEST
+output
 
 #################
 ## npm
