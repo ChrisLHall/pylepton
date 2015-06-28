@@ -33,12 +33,7 @@ io.on('connection', function(socket){
   //socket.emit('news', { hello: 'world' });
   socket.on('status', function (data) {
     console.log(data);
-    if (data['isRover'] == false && data['canSee'] == true) {
-      status.located = true;
-    }
-    if (data['isRover']) {
-      io.emit('status', status);
-    }
+    io.emit('status', status);
   });
 
   socket.on('target',function(data) {
