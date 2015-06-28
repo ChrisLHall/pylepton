@@ -9,6 +9,8 @@ import cv2
 import traceback
 from pylepton import Lepton
 
+import watchon.client
+
 WIDTH = 160
 HEIGHT = 120
 
@@ -44,7 +46,7 @@ def AlignImages(image1, image2, shiftx, shifty):
   
 def DetectBlobs(image):
   detector = cv2.SimpleBlobDetector()
-  points = detector.detect(image)
+  points = detector.detect((image * 255).astype('uint8'))
   return points
 
 def Normalize(image):
@@ -59,6 +61,7 @@ def main(flip_v = False, alpha = 128, shiftx=0, shifty=0, device = "/dev/spidev0
   lepton_buf = np.zeros((60, 80, 1), dtype=np.uint16)
   cv2.namedWindow("Pines")
 
+  sentImageYet = False
   with picamera.PiCamera() as camera:
     camera.resolution = (WIDTH, HEIGHT)
     camera.framerate = 24
@@ -94,28 +97,39 @@ def main(flip_v = False, alpha = 128, shiftx=0, shifty=0, device = "/dev/spidev0
           #small_capture_array = scipy.misc.imresize(capture_array, (60, 80), interp='bilinear')
           #lepton_float = lepton_buf.astype('float')[:, :, 0] / 65535.0
           lepton_float = lepton_buf[:, :, 0].astype('float')
+          Normalize(lepton_float)
             
           #lepton_resize = lepton_float
-          lepton_resize = scipy.misc.imresize(lepton_float, (HEIGHT, WIDTH), interp='bilinear')
-          lepton_resize = 5 * AlignImages(lepton_resize, capture_array[:, :, 1].astype('float'), shiftx, shifty) #TODO REMOVE THIS POOP
-          print "IM NOT SCARED OF ANYTHING EXCEPT MYSELF"
-          print lepton_float.shape
-          print DetectBlobs(lepton_float)
-            
-          stacked = lepton_resize #np.dstack((lepton_resize, lepton_resize, lepton_resize))
-          capture_array += stacked
-          Normalize(capture_array)
-          capture_array *= 255
+          print np.amax(lepton_float)
+          lepton_resize = scipy.misc.imresize(lepton_float, (HEIGHT, WIDTH), interp='bilinear').astype('float64')
+          Normalize(lepton_resize)
+                    
+          edgedetect = AlignImages(lepton_resize, capture_array[:, :, 1].astype('float'), shiftx, shifty)
+          print DetectBlobs(lepton_resize)
+          
+          final_array = np.zeros((HEIGHT, WIDTH, 3), dtype='float')
+          #final_array += capture_array
+          final_array += np.dstack((lepton_resize, lepton_resize, lepton_resize))
+          final_array += edgedetect
+          Normalize(final_array)
+          final_array *= 255
           #lepton_resize = scipy.misc.imresize(capture_array, (480, 640), interp='bilinear')
           #a[:, :, :] = capture_array[:,:,:]
           rawCapture.truncate(0)
-          cv2.imshow("Pines", scipy.misc.imresize(capture_array, (480, 640), interp='bilinear'))
+          
+          if sentImageYet == False:
+             pass
+            #sentImageYet = True
+            #watchon.client.ConnectAndSend((255 * capture_array).astype('uint8'))
+            #watchon.client.ConnectAndSend((255 * lepton_resize).astype('uint8'))
+          cv2.imshow("Pines", scipy.misc.imresize(final_array, (480, 640), interp='bilinear'))
           cv2.waitKey(1)
           #o.update(np.getbuffer(a))
     except Exception:
       traceback.print_exc()
     finally:
       print "Pines"
+      watchon.client.Close()
       #camera.remove_overlay(o)
 
 if __name__ == '__main__':
