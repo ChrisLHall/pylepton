@@ -7,3 +7,11 @@ var socket = io('http://localhost:'+port);
     console.log(data);
     socket.emit('image', { imageVL: 'data' });
   });
+  socket.on('where', function(data) {
+    console.log(data);
+    socket.emit('where', {name:process.argv[2],location:process.argv[3]})
+  });
+  socket.on('target', function(data) {
+    console.log(data);
+    //socket.emit('', {name:'batman'})
+  });
