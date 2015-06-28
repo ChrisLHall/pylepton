@@ -7,10 +7,11 @@ import numpy as np
 import scipy.misc
 import cv2
 import traceback
+
 from pylepton import Lepton
 import find_bumps
-
 import watchon.client
+import movement
 
 WIDTH = 160
 HEIGHT = 120
@@ -78,15 +79,9 @@ def main(name = 'Cam', flip_v = False, alpha = 128, shiftx=0, shifty=0, rover = 
   with picamera.PiCamera() as camera:
     camera.resolution = (WIDTH, HEIGHT)
     camera.framerate = 24
-    #camera.vflip = flip_v
     camera.rotation = 180
     rawCapture =picamera.array.PiRGBArray(camera, size=(WIDTH,HEIGHT))
-    #camera.start_preview()
-    #camera.fullscreen = True
-    # Add the overlay directly into layer 3 with transparency;
-    # we can omit the size parameter of add_overlay as the
-    # size is the same as the camera's resolution
-    #o = camera.add_overlay(np.getbuffer(a), size=(640,480), layer=3, alpha=255, crop=(0,0,640,480), vflip=flip_v)
+    
     try:
       time.sleep(0.2) # give the overlay buffers a chance to initialize
       with Lepton(device) as l:
