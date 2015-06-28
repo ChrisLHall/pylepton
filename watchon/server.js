@@ -38,7 +38,12 @@ io.on('connection', function(socket){
 
 
   socket.on('image', function(data) {
-    fs.writeFile('images/' + (new Date().getTime()) + '-vl.jpg', data.imageVL, function(err) {
+    time = (new Date().getTime());
+    fs.writeFile('images/' + time + '-vl.jpg', data.imageVL, function(err) {
+    if(err) {
+        return console.log(err);
+    }
+    fs.writeFile('images/' + time + '-ir.jpg', data.imageIR, function(err) {
     if(err) {
         return console.log(err);
     }
