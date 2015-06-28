@@ -16,6 +16,8 @@ import movement
 WIDTH = 160
 HEIGHT = 120
 TRANSMIT_INTERVAL = 3
+SIZE_APPROACH_MAX = 30.0
+SIZE_APPROACH_MIN = 10.0
 
 def AlignImages(image1, image2, shiftx, shifty):
   image1dx = cv2.Sobel(image1, cv2.CV_64F, 1, 0, ksize=3)
@@ -56,7 +58,13 @@ def GetKeypointListCenter(list_of_keypoint_lists):
   xTotal = 0.0
   yTotal = 0.0
   for keypoint_list in list_of_keypoint_lists:
-    for kp in keypoint_list:
+    kp = None
+    biggestKp = 0
+    for temp_kp in keypoint_list:
+      if temp_kp.size > biggestKp:
+        biggestKp = temp_kp.size
+        kp = temp_kp
+    if kp != None:
       x, y = kp.pt
       xTotal += x * kp.size
       yTotal += y * kp.size
@@ -64,7 +72,22 @@ def GetKeypointListCenter(list_of_keypoint_lists):
   if total_weight == 0.0:
     return None
   else:
-    return (xTotal / total_weight, yTotal / total_weight)
+    return {'x': xTotal / total_weight, 'y': yTotal / total_weight, 'weight': total_weight}
+
+def MoveBasedOnTarget(target):
+  if target == None:
+    movement.Stop()
+    return
+  target_x = target['x']
+  target_y = target['y']
+  size = target['weight']
+  # I think the target image is rotated 90 degrees
+  if target_y < HEIGHT / 3.0:
+    movement.TurnLeft()
+  elif target_y > HEIGHT * 2.0 / 3.0:
+    movement.TurnRight()
+  elif size < SIZE_APPROACH_MAX and size > SIZE_APPROACH_MIN: #Target in the middle
+     movement.MoveForward()
 
 def main(name = 'Cam', flip_v = False, alpha = 128, shiftx=0, shifty=0, rover = False, device = "/dev/spidev0.0"):
   # Create an array representing a 1280x720 image of
@@ -112,8 +135,9 @@ def main(name = 'Cam', flip_v = False, alpha = 128, shiftx=0, shifty=0, rover = 
           keypointListsByFrame = [points,] + keypointListsByFrame[:-1]
           center = GetKeypointListCenter(keypointListsByFrame)
           if center != None:
-            center_x, center_y = center
-            cv2.circle(pointpic, (int(center_x), int(center_y)), 5, (255, 255, 0))
+            center_x = center['x']
+            center_y = center['y']
+            cv2.circle(pointpic, (int(center_x), int(center_y)), int(center['weight']), (255, 255, 0))
           
           final_array = np.zeros((HEIGHT, WIDTH, 3), dtype='float')
           #final_array += capture_array
@@ -128,6 +152,8 @@ def main(name = 'Cam', flip_v = False, alpha = 128, shiftx=0, shifty=0, rover = 
           rawCapture.truncate(0)
           
           watchon.client.SendStatus(name, rover, False, False)
+          if rover: # TODO wait for command
+            MoveBasedOnTarget(center)
           
           if untilNextTransmit <= 0 and center != None:
             untilNextTransmit = TRANSMIT_INTERVAL

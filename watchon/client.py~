@@ -30,10 +30,13 @@ def Close():
   pass
      #s.close()
 
-def SendStatus(name, isRover, canSee, tryingToFind):
+def SendStatus(name, isRover, canSee, tryingToFind, waitForResponse=False):
   print "Sending status..."
-  statusIO.emit('status', {'canSee': canSee, 'tryingToFind': tryingToFind}, GetCmdCallback)
-  statusIO.wait_for_callbacks(seconds=1)
+  if waitForResponse:
+    statusIO.emit('status', {'canSee': canSee, 'tryingToFind': tryingToFind}, GetCmdCallback)
+    statusIO.wait_for_callbacks(seconds=1)
+  else:
+    statusIO.emit('status', {'canSee': canSee, 'tryingToFind': tryingToFind})
 
 def GetCmdCallback(*args):
     print "Sent status successfully."

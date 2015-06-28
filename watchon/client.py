@@ -33,7 +33,7 @@ def Close():
 def SendStatus(name, isRover, canSee, tryingToFind, waitForResponse=False):
   print "Sending status..."
   if waitForResponse:
-    statusIO.emit('status', {'canSee': canSee, 'tryingToFind': tryingToFind}, GetCmdCallback)
+    statusIO.emit('status', {'name': name, 'isRover': isRover, 'canSee': canSee, 'tryingToFind': tryingToFind}, GetCmdCallback)
     statusIO.wait_for_callbacks(seconds=1)
   else:
     statusIO.emit('status', {'canSee': canSee, 'tryingToFind': tryingToFind})
