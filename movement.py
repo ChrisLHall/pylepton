@@ -1,6 +1,8 @@
 import RPi.GPIO as GPIO
 import time
 
+SPEED = 60
+
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(21, GPIO.OUT)
 GPIO.setup(20, GPIO.OUT)
@@ -15,22 +17,22 @@ GPIO.output(19, 0)
 
 def TurnLeft():
   print "Turning left"
-  left.ChangeDutyCycle(20)
-  right.ChangeDutyCycle(20)
+  left.ChangeDutyCycle(SPEED)
+  right.ChangeDutyCycle(SPEED)
   GPIO.output(20, 1)
   GPIO.output(19, 1)
 
 def TurnRight():
   print "Turning right"
-  left.ChangeDutyCycle(20)
-  right.ChangeDutyCycle(20)
+  left.ChangeDutyCycle(SPEED)
+  right.ChangeDutyCycle(SPEED)
   GPIO.output(20, 0)
   GPIO.output(19, 0)
 
 def MoveForward():
   print "Moving forward"
-  left.ChangeDutyCycle(20)
-  right.ChangeDutyCycle(20)
+  left.ChangeDutyCycle(SPEED)
+  right.ChangeDutyCycle(SPEED)
   GPIO.output(20, 1)
   GPIO.output(19, 0)
 
