@@ -7,14 +7,17 @@ import numpy as np
 import scipy.misc
 import cv2
 import traceback
+
 from pylepton import Lepton
 import find_bumps
-
 import watchon.client
+import movement
 
 WIDTH = 160
 HEIGHT = 120
 TRANSMIT_INTERVAL = 3
+SIZE_APPROACH_MAX = 30.0
+SIZE_APPROACH_MIN = 10.0
 
 def AlignImages(image1, image2, shiftx, shifty):
   image1dx = cv2.Sobel(image1, cv2.CV_64F, 1, 0, ksize=3)
@@ -55,7 +58,13 @@ def GetKeypointListCenter(list_of_keypoint_lists):
   xTotal = 0.0
   yTotal = 0.0
   for keypoint_list in list_of_keypoint_lists:
-    for kp in keypoint_list:
+    kp = None
+    biggestKp = 0
+    for temp_kp in keypoint_list:
+      if temp_kp.size > biggestKp:
+        biggestKp = temp_kp.size
+        kp = temp_kp
+    if kp != None:
       x, y = kp.pt
       xTotal += x * kp.size
       yTotal += y * kp.size
@@ -63,7 +72,22 @@ def GetKeypointListCenter(list_of_keypoint_lists):
   if total_weight == 0.0:
     return None
   else:
-    return (xTotal / total_weight, yTotal / total_weight)
+    return {'x': xTotal / total_weight, 'y': yTotal / total_weight, 'weight': total_weight}
+
+def MoveBasedOnTarget(target):
+  if target == None:
+    movement.Stop()
+    return
+  target_x = target['x']
+  target_y = target['y']
+  size = target['weight']
+  # I think the target image is rotated 90 degrees
+  if target_y < HEIGHT / 3.0:
+    movement.TurnLeft()
+  elif target_y > HEIGHT * 2.0 / 3.0:
+    movement.TurnRight()
+  elif size < SIZE_APPROACH_MAX and size > SIZE_APPROACH_MIN: #Target in the middle
+     movement.MoveForward()
 
 def main(name = 'Cam', flip_v = False, alpha = 128, shiftx=0, shifty=0, rover = False, device = "/dev/spidev0.0"):
   # Create an array representing a 1280x720 image of
@@ -78,15 +102,9 @@ def main(name = 'Cam', flip_v = False, alpha = 128, shiftx=0, shifty=0, rover = 
   with picamera.PiCamera() as camera:
     camera.resolution = (WIDTH, HEIGHT)
     camera.framerate = 24
-    #camera.vflip = flip_v
     camera.rotation = 180
     rawCapture =picamera.array.PiRGBArray(camera, size=(WIDTH,HEIGHT))
-    #camera.start_preview()
-    #camera.fullscreen = True
-    # Add the overlay directly into layer 3 with transparency;
-    # we can omit the size parameter of add_overlay as the
-    # size is the same as the camera's resolution
-    #o = camera.add_overlay(np.getbuffer(a), size=(640,480), layer=3, alpha=255, crop=(0,0,640,480), vflip=flip_v)
+    
     try:
       time.sleep(0.2) # give the overlay buffers a chance to initialize
       with Lepton(device) as l:
@@ -117,8 +135,9 @@ def main(name = 'Cam', flip_v = False, alpha = 128, shiftx=0, shifty=0, rover = 
           keypointListsByFrame = [points,] + keypointListsByFrame[:-1]
           center = GetKeypointListCenter(keypointListsByFrame)
           if center != None:
-            center_x, center_y = center
-            cv2.circle(pointpic, (int(center_x), int(center_y)), 5, (255, 255, 0))
+            center_x = center['x']
+            center_y = center['y']
+            cv2.circle(pointpic, (int(center_x), int(center_y)), int(center['weight']), (255, 255, 0))
           
           final_array = np.zeros((HEIGHT, WIDTH, 3), dtype='float')
           #final_array += capture_array
@@ -131,6 +150,11 @@ def main(name = 'Cam', flip_v = False, alpha = 128, shiftx=0, shifty=0, rover = 
           #lepton_resize = scipy.misc.imresize(capture_array, (480, 640), interp='bilinear')
           #a[:, :, :] = capture_array[:,:,:]
           rawCapture.truncate(0)
+          
+          watchon.client.SendStatus(name, rover, False, False)
+          if rover: # TODO wait for command
+            print center
+            MoveBasedOnTarget(center)
           
           if untilNextTransmit <= 0 and center != None:
             untilNextTransmit = TRANSMIT_INTERVAL

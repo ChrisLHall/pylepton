@@ -3,7 +3,7 @@ import os
 import cv2
 from socketIO_client import SocketIO, LoggingNamespace
 
-host = '192.168.1.72' # Get local machine name
+host = '192.168.30.107' # Get local machine name
 port = 8080                 # Reserve a port for your service.
 statusport = 9002
 
@@ -30,21 +30,16 @@ def Close():
   pass
      #s.close()
 
-def SendWhere(name, isRover):
-  print "Sending handshake..."
-  def respond(args*):
-    statusIO.emit('where', {'name': name, 'rover': isRover})
-    print "Sent handshake."
-  statusIO.on('where', respond)
-  statusIO.wait_for_callbacks(seconds=1)
-
-def SendStatus(name, isRover, canSee, tryingToFind):
+def SendStatus(name, isRover, canSee, tryingToFind, waitForResponse=False):
   print "Sending status..."
-  statusIO.emit('status', {'canSee': canSee, 'tryingToFind': tryingToFind}, GetCmdCallback)
-  statusIO.wait_for_callbacks(seconds=1)
+  if waitForResponse:
+    statusIO.emit('status', {'canSee': canSee, 'tryingToFind': tryingToFind}, GetCmdCallback)
+    statusIO.wait_for_callbacks(seconds=1)
+  else:
+    statusIO.emit('status', {'canSee': canSee, 'tryingToFind': tryingToFind})
 
 def GetCmdCallback(*args):
-    print "Sent status."
+    print "Sent status successfully."
     print('cmd was received', args)
     
 if __name__ == "__main__":
