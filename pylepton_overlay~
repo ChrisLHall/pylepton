@@ -14,6 +14,7 @@ import watchon.client
 
 WIDTH = 160
 HEIGHT = 120
+TRANSMIT_INTERVAL = 3
 
 def AlignImages(image1, image2, shiftx, shifty):
   image1dx = cv2.Sobel(image1, cv2.CV_64F, 1, 0, ksize=3)
@@ -64,7 +65,7 @@ def GetKeypointListCenter(list_of_keypoint_lists):
   else:
     return (xTotal / total_weight, yTotal / total_weight)
 
-def main(flip_v = False, alpha = 128, shiftx=0, shifty=0, device = "/dev/spidev0.0"):
+def main(name = 'Cam', flip_v = False, alpha = 128, shiftx=0, shifty=0, rover = False, device = "/dev/spidev0.0"):
   # Create an array representing a 1280x720 image of
   # a cross through the center of the display. The shape of
   # the array must be of the form (height, width, color)
@@ -72,8 +73,8 @@ def main(flip_v = False, alpha = 128, shiftx=0, shifty=0, device = "/dev/spidev0
   lepton_buf = np.zeros((60, 80, 1), dtype=np.uint16)
   cv2.namedWindow("Pines")
 
-  sentImageYet = False
-  keypointListsByFrame = [[], [], [], [], []]
+  untilNextTransmit = TRANSMIT_INTERVAL
+  keypointListsByFrame = [[], [], [], []]
   with picamera.PiCamera() as camera:
     camera.resolution = (WIDTH, HEIGHT)
     camera.framerate = 24
@@ -131,11 +132,15 @@ def main(flip_v = False, alpha = 128, shiftx=0, shifty=0, device = "/dev/spidev0
           #a[:, :, :] = capture_array[:,:,:]
           rawCapture.truncate(0)
           
-          if sentImageYet == False:
-             pass
-            #sentImageYet = True
-            #watchon.client.ConnectAndSend((255 * capture_array).astype('uint8'))
+          if untilNextTransmit <= 0 and center != None:
+            untilNextTransmit = TRANSMIT_INTERVAL
+            try:
+              pass
+              #watchon.client.ConnectAndSend((255 * capture_array).astype('uint8'))
+            except Exception:
+              print "Send failed."
             #watchon.client.ConnectAndSend((255 * lepton_resize).astype('uint8'))
+          untilNextTransmit -= 1
           cv2.imshow("Pines", scipy.misc.imresize(final_array, (480, 640), interp='bilinear'))
           cv2.waitKey(1)
           #o.update(np.getbuffer(a))
@@ -156,6 +161,14 @@ if __name__ == '__main__':
                     action="store_true", dest="flip_v", default=False,
                     help="flip the output images vertically")
 
+  parser.add_option("-n", "--name",
+                    dest="name", default='Cam',
+                    help="Name of this node on the server.")
+
+  parser.add_option("-r", "--rover",
+                    action="store_true", dest="rover", default=False,
+                    help="Set this flag to mark this as the rover.")
+
   parser.add_option("-a", "--alpha",
                     dest="alpha", default=128,
                     help="set lepton overlay opacity")
@@ -174,4 +187,4 @@ if __name__ == '__main__':
 
   (options, args) = parser.parse_args()
 
-  main(flip_v = options.flip_v, alpha = options.alpha, shiftx=int(options.shiftx), shifty=int(options.shifty), device = options.device)
+  main(name = options.name, flip_v = options.flip_v, alpha = options.alpha, shiftx=int(options.shiftx), shifty=int(options.shifty), rover = options.rover, device = options.device)
